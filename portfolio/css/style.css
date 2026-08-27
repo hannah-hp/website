@@ -1,0 +1,552 @@
+@font-face {
+    font-family: 'Coolvetica';
+    src: url(Coolvetica\ Rg.otf);
+}
+
+@font-face {
+    font-family: 'andora';
+    src: url(andora.otf);
+}
+
+@font-face {
+  font-family: 'cool_it';
+  src: url(Coolvetica\ Rg\ It.otf)
+}
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0px; 
+    padding: 0px;
+    background-color: #FFF7E6;
+}
+
+.navigation {
+    font-family: 'andora';
+    display: flex;
+    margin-top: 0px;
+    width: 100%;
+    background-color: #0D3B66;
+    padding: 0 40px;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+}
+
+.navList {
+    margin: 0;
+    list-style: none;
+    display: flex;
+    gap: 35px; 
+    padding: 15px;
+    justify-content: right;
+}
+
+.navigation a {
+    text-decoration: none;
+    color: white;
+    font-size: 30px;
+}
+
+.navgiation a:hover .logo {
+    color: #A1CDF7;
+}
+.nav a:hover {
+    color: #A1CDF7;
+}
+
+#home {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 4rem 0rem;
+    min-height: 60vh;
+    display: flex;
+    align-items: center; 
+    justify-content: space-between;
+    overflow: hidden;
+    gap: 175px;   
+}
+
+.title {
+    flex: 1;
+}
+
+.title h1 {
+    text-align: center;
+    font-family: 'andora';
+    font-size: 3rem;
+    margin: 0;
+    white-space: nowrap;
+}
+.pic {
+    flex: 1;
+    max-width: 500px;
+    min-width: 0;
+}
+.pic img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+#about {
+  font-family: 'Coolvetica';
+    margin-top: 0px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 4rem;
+    padding: 2rem 4rem;
+}
+
+/* ABOUT TITLE */
+h2 {
+    font-family: 'andora';
+    margin: 0;
+    padding: 0;
+    text-align: center;
+    margin-top: 120px;
+    margin-bottom: 20px;
+    font-size: 30pt;
+    position: relative;
+    padding: 0 15rem;
+}
+
+h2::before,
+h2::after {
+  content: '';             
+  position: absolute;      
+  width: 710px;              
+  height: 8px;             
+  background-color: #0D3B66; 
+  top: 50%;            
+  transform: translateY(-50%);
+  width: calc(50% - 15rem);
+}
+
+h2::before {
+  left: 0;                
+}
+
+h2::after {
+  right: 0;               
+}
+
+.intro {
+    font-size: 22pt;
+    line-height: 1.5;
+    margin-right: 4rem;
+}
+
+.contact p {
+    font-family: 'cool_it';
+    font-size: 22pt;
+    line-height: 1.5;
+    white-space: nowrap;
+    margin-left: 4rem;
+
+}
+
+/* WORK TITLE */
+h3 {
+    font-family: 'andora';
+    margin: 0;
+    padding: 0;
+    text-align: center;
+    margin-top: 120px;
+    margin-bottom: 20px;
+    font-size: 30pt;
+    position: relative;
+    padding: 0 15rem;
+}
+
+h3::before,
+h3::after {
+  content: '';             
+  position: absolute;      
+  width: 725px;        
+  height: 8px;             
+  background-color: #0D3B66; 
+  top: 50%;  
+  transform: translateY(-50%);
+  width: calc(50% - 15rem);
+}
+
+h3::before {
+  left: 0;                
+}
+
+h3::after {
+  right: 0;               
+}
+
+#work {
+    margin-top: 250px;
+    margin: 0;
+}
+
+/* DEV ROW */
+.dev_title {
+    font-family: 'cool_it';
+    font-size: 25pt;
+    margin-left: 40px;
+    margin-top: 10;
+}
+
+.dev {
+    cursor: pointer;
+    position: relative;
+}
+.dev img {
+    width: 150px;       
+    height: 150px;      
+    object-fit: contain;
+    transition: transform 0.2s ease;
+}
+
+.dev-row {
+    display: flex;
+    gap: 65px;
+    list-style-type: none; 
+    padding: 0;            
+    margin: 0;  
+    margin-left: 50px;   
+    margin-bottom: 50px;        
+}
+
+.dev:hover img {
+    transform: scale(1.2)
+}
+
+.dev::after {
+  content: attr(data-tool); 
+  font-family: 'Coolvetica';  
+  position: absolute;
+  bottom: -50px;              
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #0D3B66;
+  color: white;            
+  padding: 5px 10px;          
+  border-radius: 4px;         
+  font-size: 20px;            
+  opacity: 0;                 
+  pointer-events: none;       
+  transition: opacity 0.3s ease; 
+}
+.dev:hover::after {
+  opacity: 1; 
+}
+
+/* TOOLS ROW */
+.tool_title {
+    font-family: 'cool_it';
+    font-size: 25pt;
+    margin-left: 40px;
+    margin-bottom: 30px;
+}
+
+.tool {
+    cursor: pointer;
+    position: relative;
+}
+.tool img {
+    width: 150px;       
+    height: 150px;      
+    object-fit: contain;
+    transition: transform 0.2s ease;
+}
+
+.tool-row {
+    display: flex;
+    list-style-type: none;
+    gap: 65px;
+    padding: 0;
+    margin: 0;
+    margin-left: 50px;
+}
+
+.tool:hover img {
+    transform: scale(1.2)
+}
+
+.tool::after {
+  content: attr(data-tool);  
+  font-family: 'Coolvetica';  
+  position: absolute;
+  bottom: -50px;              
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #0D3B66;
+  color: white;            
+  padding: 5px 10px;          
+  border-radius: 4px;         
+  font-size: 20px;            
+  opacity: 0;                 
+  pointer-events: none;       
+  transition: opacity 0.3s ease; 
+}
+.tool:hover::after {
+  opacity: 1; 
+}
+
+.software {
+  font-family: 'cool_it';
+  font-size: 25pt;
+  margin-left: 40px;
+  margin-top: 10;
+}
+
+.design {
+  font-family: 'cool_it';
+  font-size: 25pt;
+  margin-left: 40px;
+  margin-top: 10;
+}
+/* PERSONAL SECTION */
+h4 {
+  font-family: 'andora';
+  /* display: flex; */
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  margin-top: 120px;
+  margin-bottom: 20px;
+  font-size: 30pt;
+  position: relative;
+  padding: 0 15rem;
+}
+
+h4::before,
+h4::after {
+  content: '';             
+  position: absolute;      
+  width: 30%;              
+  height: 8px;             
+  background-color: #0D3B66; 
+  top: 50%;
+  transform: translateY(-50%);
+  width: calc(50% - 15rem);
+}
+
+h4::before {
+  left: 0;                
+}
+
+h4::after {
+  right: 0;               
+}
+
+/* @media (max-width: 480px) {
+  h4 {
+    padding: 0 1.5rem;
+  }
+
+  h4::before,
+  h4::after {
+    height: 5px;
+    width: calc(50% - 1.5rem);
+  }
+} */
+
+#personal {
+  margin-top: 250px;
+  margin: 0;
+}
+
+#personal p {
+  font-family: 'cool_it';
+  font-size: 25pt;
+  margin-left: 40px;
+  margin-bottom: 30px;
+}
+
+.hobby {
+  cursor: pointer;
+  position: relative;
+}
+
+.hobby img {
+  background-color: #A1CDF7;
+  border-radius: 4pt;
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+.hob_list {
+  display: flex;
+  list-style-type: none;
+  gap: 65px;
+  padding: 0;
+  margin: 0;
+  margin-left: 50px;
+  margin-bottom: 70px;
+}
+
+.hobby:hover img {
+  transform: scale(1.2)
+}
+
+.hobby::after {
+  content: attr(data-tool);
+  font-family: 'Coolvetica';
+  position: absolute;
+  bottom: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #0D3B66;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.hobby:hover::after {
+  opacity: 1;
+}
+
+.orgs, .acts, .project {
+  margin: 0;
+}
+
+#personal .orgs p {
+  margin-left: 70px;
+  line-height: 0.75;
+}
+
+#personal .orgs .indent {
+  margin-left: 125px;
+}
+
+.orgs a {
+  text-decoration: none;
+  color: black;
+}
+
+.orgs a:hover {
+  color: #A1CDF7;
+}
+
+#personal .acts .indent {
+  margin-left: 125px;
+}
+
+.acts a {
+  text-decoration: none;
+  color: black;
+}
+
+.acts a:hover {
+  color: #A1CDF7;
+}
+
+#personal .acts p {
+  margin-left: 70px;
+  line-height: 0.75;
+}
+
+#personal .project p {
+  margin-left: 70px;
+  line-height: 0.75;
+}
+
+/* TITLE LINES */
+h5 {
+  font-family: 'andora';
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  margin-top: 120px;
+  margin-bottom: 20px;
+  font-size: 30pt;
+  position: relative;
+}
+
+h5::before,
+h5::after {
+  content: '';             
+  position: absolute;      
+  width: 425px;              
+  height: 8px;             
+  background-color: #0D3B66; 
+  top: 50%;     
+  transform: translateY(-50%);
+}
+
+h5::before {
+  left: 0;                
+}
+
+h5::after {
+  right: 0;               
+}
+
+.accordion {
+  background-color: #eee;
+  color: #444;
+  cursor: pointer;
+  padding: 18px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  outline: none;
+  transition: 0.4s;
+}
+
+/* Add a background color to the button if it is clicked on (add the .active class with JS), and when you move the mouse over it (hover) */
+.active,
+.accordion:hover {
+  background-color: #ccc;
+}
+
+/* Style the accordion panel. Note: hidden by default */
+.panel {
+  padding: 0 18px;
+  background-color: white;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+}
+
+/* prefers reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  .hobby img {
+      transition: none;
+    }
+    .hobby:hover img {
+      transform: none;
+    }
+  
+    .hobby::after {
+      transition: none;
+    }
+    .tool img {
+      transition: none;
+    }
+
+    .tool:hover img {
+      transform: none;
+    }
+
+    .tool::after {
+      transition: none;
+    }
+    .dev img {
+      transition: none;
+    }
+
+    .dev:hover img {
+      transform: none;
+    }
+
+    .dev::after {
+      transition: none;
+    }
+}
