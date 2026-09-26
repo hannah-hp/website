@@ -1,9 +1,0 @@
-Project 1 Commentary:
-
-1: List the purpose for each goroutine you create in your project, and
-describe when it is created.
-
-2: How do your goroutines communicate with one another?
-
-3: How do you gaurantee that all created goroutines terminte when your
-server is shut down?
