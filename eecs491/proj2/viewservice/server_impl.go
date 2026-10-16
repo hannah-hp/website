@@ -1,7 +1,5 @@
 package viewservice
 
-import "fmt"
-
 // additions to ViewServer state.
 // in common.go
 //type View struct {
@@ -81,8 +79,6 @@ func (vs *ViewServer) tick() {
 	// if any server has trackPings > 5 then it's dead
 	// when a tick is called, increase time it hasn't recieved a ping
 	if vs.impl.currView.Viewnum == 0 { // starting --> get initial primary
-		fmt.Printf("View: %+v, trackPings: %+v\n",
-			vs.impl.currView, vs.impl.trackPings)
 		firstPrimary := ""
 		firstBackup := ""
 		for key := range vs.impl.trackPings {
@@ -101,7 +97,21 @@ func (vs *ViewServer) tick() {
 		}
 	}
 	if vs.impl.currView.Viewnum == 1 { // GET INITIAL BACKUP
-
+		firstBackup := ""
+		for key := range vs.impl.trackPings {
+			if key != vs.impl.currView.Primary && key != vs.impl.currView.Backup &&
+				vs.impl.trackPings[key] < DeadPings { // promote as a backup
+				firstBackup = key
+				break
+			}
+		}
+		if firstBackup != "" {
+			vs.impl.currView = View{
+				Viewnum: vs.impl.currView.Viewnum + 1,
+				Primary: vs.impl.currView.Primary,
+				Backup:  firstBackup,
+			}
+		}
 	}
 	for key := range vs.impl.trackPings {
 		vs.impl.trackPings[key]++
