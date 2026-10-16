@@ -1,5 +1,7 @@
 package viewservice
 
+import "fmt"
+
 // additions to ViewServer state.
 // in common.go
 //type View struct {
@@ -54,28 +56,6 @@ func (vs *ViewServer) PingImpl(args *PingArgs, reply *PingReply) {
 	} else { // viewNum is a value. so seenNonZero is false
 		vs.impl.seenNonZero[args.Me] = true
 	}
-	//if args.Viewnum == 0 && ((args.Me == vs.impl.currView.Backup) ||
-	//	(args.Me == vs.impl.currView.Primary)) { // if the server is a primary or backup and the viewNum is 0
-	//	// the server is either NEW or RESTARTED
-	//	_, exists := vs.impl.trackRestarted[args.Me]
-	//	if !exists { // the server is not in the map, so it's NEW
-	//		// NOTE: this doesn't work. what is S3 starts up, and restarts later when
-	//		//it's a backup, we won't know it restarted
-	//		vs.impl.trackRestarted[args.Me] = false
-	//	} else {
-	//		vs.impl.trackRestarted[args.Me] = true // server has been seen --> RESTARTED
-	//	}
-	//	// if it's the primary, then we should change the view and take the primary out
-	//}
-	/// the primary server acknowledges the same view number and it's the primary
-
-	// check if server is in prevView
-	// if not --> add it in --> new server -->  prevView[server] = viewnum. restarted = false
-	// if in prevView --> ok we've seen it before, but is this a new viewnum or restarted
-	// if viewNum = 0 && prevViewNum != 0 // restarted
-	// trackRestarted = true
-
-	// 	 prevView[server] = viewnum
 	// if I received a ping, then the server is still working, so interval is at 0
 	vs.impl.trackPings[args.Me] = 0
 
@@ -100,6 +80,29 @@ func (vs *ViewServer) tick() {
 	// increment trackPings ++
 	// if any server has trackPings > 5 then it's dead
 	// when a tick is called, increase time it hasn't recieved a ping
+	if vs.impl.currView.Viewnum == 0 { // starting --> get initial primary
+		fmt.Printf("View: %+v, trackPings: %+v\n",
+			vs.impl.currView, vs.impl.trackPings)
+		firstPrimary := ""
+		firstBackup := ""
+		for key := range vs.impl.trackPings {
+			if key != vs.impl.currView.Primary && key != vs.impl.currView.Backup &&
+				vs.impl.trackPings[key] < DeadPings { // promote as a backup
+				firstPrimary = key
+				break
+			}
+		}
+		if firstPrimary != "" {
+			vs.impl.currView = View{
+				Viewnum: vs.impl.currView.Viewnum + 1,
+				Primary: firstPrimary,
+				Backup:  firstBackup,
+			}
+		}
+	}
+	if vs.impl.currView.Viewnum == 1 { // GET INITIAL BACKUP
+
+	}
 	for key := range vs.impl.trackPings {
 		vs.impl.trackPings[key]++
 	}
@@ -154,14 +157,6 @@ func (vs *ViewServer) tick() {
 		vs.impl.primaryAcknowledged = false       // reset acknowledgement since there's a new view
 		vs.impl.trackRestarted[oldBackup] = false // old backup restarted is reset
 	}
-	// SERVERS RESTARTED - TODO
-
-	// DO I NEED TO TRACK ACKNOLWEDGEMETN omg yes wtf
-	//	However, the view service must not promote the Backup in view i
-	//	to be the Primary in view i+1 until the primary from view i acknowledges
-	//	that it is operating in view i. The Primary does so by sending a Ping where
-	//	the view number is set to i. The primary should only do so after it has
-	//	successfully transferred its state to the Backup in view i.
 
 }
 
