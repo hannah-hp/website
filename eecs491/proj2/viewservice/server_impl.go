@@ -39,11 +39,6 @@ func (vs *ViewServer) initImpl() {
 	//}()
 }
 
-//type PingArgs struct {
-//	Me      string // "host:port"
-//	Viewnum uint   // caller's notion of current view #
-//}
-
 // Ping() RPC handler implementation
 func (vs *ViewServer) PingImpl(args *PingArgs, reply *PingReply) {
 
@@ -71,14 +66,13 @@ func (vs *ViewServer) GetImpl(args *GetArgs, reply *GetReply) {
 // tick() is called once per PingInterval; it should notice
 // if servers have died or recovered, and change the view
 // accordingly.
-
-// wanted: View{primary: "/var/tmp/824-501/viewserver-39306-1", Backup: "", Viewnum: 1}
-// got:    View{primary: "", Backup: "", Viewnum: 0}
 func (vs *ViewServer) tick() {
 	// increment trackPings ++
 	// if any server has trackPings > 5 then it's dead
 	// when a tick is called, increase time it hasn't recieved a ping
-	if vs.impl.currView.Viewnum == 0 { // starting --> get initial primary
+
+	// TODO : CAN WE GENERALIZE TO BE IF VS.IMPL.CURRVIEW.PRIMARY == "" {INITIAL PRIMARY?}
+	if vs.impl.currView.Primary == "" { // starting --> get initial primary
 		firstPrimary := ""
 		firstBackup := ""
 		for key := range vs.impl.trackPings {
@@ -96,7 +90,10 @@ func (vs *ViewServer) tick() {
 			}
 		}
 	}
-	if vs.impl.currView.Viewnum == 1 { // GET INITIAL BACKUP
+	// IF PRIMARY != "" AND BACKUP == ""
+	// so this could be initial backup
+	// or we can loop through pigns
+	if vs.impl.currView.Primary != "" && vs.impl.currView.Backup == "" { // GET INITIAL BACKUP
 		firstBackup := ""
 		for key := range vs.impl.trackPings {
 			if key != vs.impl.currView.Primary && key != vs.impl.currView.Backup &&
@@ -142,9 +139,7 @@ func (vs *ViewServer) tick() {
 			vs.impl.trackRestarted[vs.impl.currView.Primary] = false // set the restarted primary to be false, bc it got booted and we dgaf
 		}
 	}
-
-	if vs.impl.trackPings[vs.impl.currView.Backup] >= DeadPings ||
-		vs.impl.trackRestarted[vs.impl.currView.Backup] == true { // dead or restartedbackkup
+	if vs.impl.trackPings[vs.impl.currView.Backup] >= DeadPings { // dead or restartedbackkup
 		// primary is good, we jsut need a new backup
 		oldBackup := vs.impl.currView.Backup
 		newBackup := ""
@@ -155,7 +150,7 @@ func (vs *ViewServer) tick() {
 				break
 			}
 		}
-		if vs.impl.trackRestarted[vs.impl.currView.Backup] == true && newBackup == "" { // the newBackup can be the restarted one
+		if newBackup == "" { // the newBackup can be the restarted one
 			newBackup = oldBackup
 		}
 		// if no new backup was found then it's "" when oldBackup is dead
