@@ -2,7 +2,6 @@ package viewservice
 
 type VSRequests func(*ViewServerImpl) any
 
-// TODO do i need "any"?
 type ViewServerImpl struct {
 	currView            View            // viewnum, primary, backup
 	seenNonZero         map[string]bool // tracking if the server has seen nonzero viewNums
@@ -11,6 +10,7 @@ type ViewServerImpl struct {
 	trackRestarted      map[string]bool // track the servers that have restarted
 	VSRequests          chan VSRequests // channel for viewservice operation requests
 	VSResponses         chan any        // channel for ViewService responses
+	lastViewNum         map[string]uint // tracks all servers and its' last viewnum
 }
 
 // your vs.impl.* initializations here.
@@ -22,6 +22,7 @@ func (vs *ViewServer) initImpl() {
 	vs.impl.trackRestarted = make(map[string]bool)
 	vs.impl.VSRequests = make(chan VSRequests)
 	vs.impl.VSResponses = make(chan any)
+	vs.impl.lastViewNum = make(map[string]uint)
 
 	go func() {
 		for fn := range vs.impl.VSRequests { // for the length of the channel having an action
@@ -42,16 +43,20 @@ func (vs *ViewServer) performRequests(fn VSRequests) any { // sends the request 
 func (vs *ViewServer) PingImpl(args *PingArgs, reply *PingReply) {
 	pingRequests := func(*ViewServerImpl) any {
 		if args.Viewnum == 0 { // ping(0) --> server is either NEW or RESTARTED
-			if vs.impl.seenNonZero[args.Me] == true { // it has seen numbered views, like 1, and getting 0 means it restarted
+			if vs.impl.seenNonZero[args.Me] == true && vs.impl.lastViewNum[args.Me] != 0 { // it has seen numbered views, like 1, and getting 0 means it restarted
 				vs.impl.trackRestarted[args.Me] = true
-			}
-		} else { // viewNum is a value. so seenNonZero is false
+
+			} // TODO - i feel like this should only be relevant when it's active, bc if it's idle it will be restarted when we don't care
+			// fixed bc i reset the Restarted Server after it's been promoted to backup or primary
+		} else { // viewNum is a value. so seenNonZero is true
 			vs.impl.seenNonZero[args.Me] = true
 		}
 		// if I received a ping, then the server is still working, so interval is at 0
 		vs.impl.trackPings[args.Me] = 0
-
+		vs.impl.lastViewNum[args.Me] = args.Viewnum
 		if args.Me == vs.impl.currView.Primary && args.Viewnum == vs.impl.currView.Viewnum {
+			//fmt.Printf("ACK: server=%s view=%d\n",
+			//	args.Me, args.Viewnum)
 			vs.impl.primaryAcknowledged = true
 		}
 		reply.View = vs.impl.currView
@@ -73,10 +78,23 @@ func (vs *ViewServer) GetImpl(args *GetArgs, reply *GetReply) {
 // if servers have died or recovered, and change the view
 // accordingly.
 func (vs *ViewServer) tick() {
-	// increment trackPings ++
-	// if any server has trackPings > 5 then it's dead
 	// when a tick is called, increase time it hasn't recieved a ping
 	tickRequests := func(*ViewServerImpl) any {
+		//fmt.Printf("TICK: view=%+v pings=%+v\n",
+		//	vs.impl.currView,
+		//	vs.impl.trackPings,
+		//)
+		// increment trackPings ++
+		for key := range vs.impl.trackPings {
+			vs.impl.trackPings[key]++
+		}
+		//fmt.Printf(
+		//	"TICK: view=%+v ack=%v trackPings=%d primaryRestarted=%v \n",
+		//	vs.impl.currView,
+		//	vs.impl.primaryAcknowledged,
+		//	vs.impl.trackPings[vs.impl.currView.Primary],
+		//	vs.impl.trackRestarted[vs.impl.currView.Primary],
+		//)
 		if vs.impl.currView.Primary == "" { // starting --> get initial primary
 			firstPrimary := ""
 			firstBackup := ""
@@ -93,118 +111,132 @@ func (vs *ViewServer) tick() {
 					Primary: firstPrimary,
 					Backup:  firstBackup,
 				}
+				vs.impl.primaryAcknowledged = false
 			}
-		}
-		// IF PRIMARY != "" AND BACKUP == ""
-		// so this could be initial backup
-		// or we can loop through pigns
-		if vs.impl.currView.Primary != "" && vs.impl.currView.Backup == "" { // GET INITIAL BACKUP
-			firstBackup := ""
-			for key := range vs.impl.trackPings {
-				if key != vs.impl.currView.Primary && key != vs.impl.currView.Backup &&
-					vs.impl.trackPings[key] < DeadPings { // promote as a backup
-					firstBackup = key
-					break
+		} else if vs.impl.currView.Primary != "" { // primary is something
+			// will the primary die or restart?
+			if vs.impl.trackPings[vs.impl.currView.Primary] >= DeadPings { // PRIMARY DIED, promote backup AND find a new backup
+				newBackup := ""
+				newPrimary := vs.impl.currView.Backup
+				oldPrimary := vs.impl.currView.Primary
+				// TODO if the old backup restarted during the time that primary died, then it's not a valid primary and no progress
+				for key := range vs.impl.trackPings {
+					if key != newPrimary && key != oldPrimary && vs.impl.trackPings[key] < DeadPings { // promote as a backup
+						newBackup = key
+						break
+					}
 				}
-			}
-			if firstBackup != "" {
-				vs.impl.currView = View{
-					Viewnum: vs.impl.currView.Viewnum + 1,
-					Primary: vs.impl.currView.Primary,
-					Backup:  firstBackup,
+				if vs.impl.primaryAcknowledged { // the old primary ack the view
+					vs.impl.currView = View{
+						Viewnum: vs.impl.currView.Viewnum + 1,
+						Primary: newPrimary,
+						Backup:  newBackup,
+					}
+					vs.impl.primaryAcknowledged = false
+					vs.impl.trackRestarted[oldPrimary] = false
+					// the old primary is dead so it doens't matter, but what if it came back alive? it's basically new
+					if newBackup != "" { // maybe not needed bc if it's "" it would set an "" as false
+						vs.impl.trackRestarted[newBackup] = false
+					}
+				} else { // primary did not ack and now it's dead, so we can't make progress
+					return nil
 				}
-			}
-		}
-		for key := range vs.impl.trackPings {
-			vs.impl.trackPings[key]++
-		}
-
-		if vs.impl.trackRestarted[vs.impl.currView.Primary] == true ||
-			vs.impl.trackPings[vs.impl.currView.Primary] >= DeadPings { // the primary has restarted OR primary died
-			// promote backup as new primary
-			// promote any available idle server as backup
-			newBackup := ""
-			newPrimary := vs.impl.currView.Backup
-			//fmt.Printf("PRIMARY RESTARTED: view=%+v, pings=%+v, ack=%v\n, restarted=%v\n",
-			//	vs.impl.currView,
-			//	vs.impl.trackPings,
-			//	vs.impl.primaryAcknowledged,
-			//	vs.impl.trackRestarted[vs.impl.currView.Primary])
-
-			for key := range vs.impl.trackPings {
-				if key != newPrimary &&
-					vs.impl.trackPings[key] < DeadPings { // promote as a backup
-					newBackup = key
-					break
+			} else if vs.impl.trackRestarted[vs.impl.currView.Primary] == true { // the primary restarted
+				newBackup := ""
+				newPrimary := vs.impl.currView.Backup
+				oldPrimary := vs.impl.currView.Primary
+				// TODO if the old backup restarted during the time that primary died, then it's not a valid primary and no progress
+				for key := range vs.impl.trackPings {
+					if key != newPrimary && vs.impl.trackPings[key] < DeadPings { // promote as a backup
+						// the restarted primary is a candidate to be the backup
+						newBackup = key
+						break
+					}
 				}
-			}
-			// if no new backup was found then it's ""
-			if vs.impl.primaryAcknowledged { // primary acknowledges the current view, we can upgrade
-				vs.impl.currView = View{
-					Viewnum: vs.impl.currView.Viewnum + 1,
-					Primary: newPrimary,
-					Backup:  newBackup,
+				if vs.impl.primaryAcknowledged { // the old primary ack the view
+					vs.impl.currView = View{
+						Viewnum: vs.impl.currView.Viewnum + 1,
+						Primary: newPrimary,
+						Backup:  newBackup,
+					}
+					vs.impl.primaryAcknowledged = false
+					vs.impl.trackRestarted[oldPrimary] = false
+					if newBackup != "" {
+						vs.impl.trackRestarted[newBackup] = false
+					}
+				} else { // primary did not ack and now it's dead, so we can't make progress
+					return nil
 				}
-				vs.impl.primaryAcknowledged = false                      // reset acknowledgement since there's a new view
-				vs.impl.trackRestarted[vs.impl.currView.Primary] = false // set the restarted primary to be false, bc it got booted and we dgaf
-			}
-			//fmt.Printf("TESTING-- DID PRIMARY RESTART GET SET?: view=%+v, ack=%v\n, restarted=%v\n",
-			//	vs.impl.currView,
-			//	vs.impl.primaryAcknowledged,
-			//	vs.impl.trackRestarted[vs.impl.currView.Primary])
-		}
-		// dead or restarted or backup
-		if vs.impl.trackPings[vs.impl.currView.Backup] >= DeadPings ||
-			vs.impl.trackRestarted[vs.impl.currView.Backup] == true {
-			// primary is good, we just need a new backup
-			oldBackup := vs.impl.currView.Backup
-			newBackup := ""
-			for key := range vs.impl.trackPings {
-				if key != vs.impl.currView.Primary &&
-					vs.impl.trackPings[key] < DeadPings { // promote as a backup
-					newBackup = key
-					break
+			} else if vs.impl.currView.Backup == "" {
+				// backup is empty --> either initial backup OR it's empty and suddendly an idle server is back on
+				// primary is chill
+				newBackup := ""
+				for key := range vs.impl.trackPings {
+					if key != vs.impl.currView.Primary && vs.impl.trackPings[key] < DeadPings { // promote as a backup
+						// this also means an old restarted backup is valid
+						newBackup = key
+						break
+					}
 				}
-			}
-
-			vs.impl.primaryAcknowledged = false       // reset acknowledgement since there's a new view
-			vs.impl.trackRestarted[oldBackup] = false // old backup restarted is reset
-			// no idle server, so backup is blank, maintain viewnum bc ownership never changes
-			if newBackup == "" && newBackup != oldBackup {
-				vs.impl.currView = View{
-					Viewnum: vs.impl.currView.Viewnum + 1,
-					Primary: vs.impl.currView.Primary, // primary stayed the same
-					Backup:  newBackup,                // empty
-				}
-
-			} else { // newBackup is either an idle server, or the same backup that was restarted
-
 				if vs.impl.primaryAcknowledged {
 					vs.impl.currView = View{
 						Viewnum: vs.impl.currView.Viewnum + 1,
-						Primary: vs.impl.currView.Primary, // primary stayed the same
+						Primary: vs.impl.currView.Primary,
 						Backup:  newBackup,
 					}
+					vs.impl.primaryAcknowledged = false
+					vs.impl.trackRestarted[newBackup] = false
+				} else {
+					return nil
 				}
-				//fmt.Printf("CURRENTLY: view=%+v, pings=%+v, ack=%v\n, restarted=%v\n",
-				//	vs.impl.currView,
-				//	vs.impl.trackPings,
-				//	vs.impl.primaryAcknowledged,
-				//	vs.impl.trackRestarted[vs.impl.currView.Primary])
-				//vs.impl.primaryAcknowledged = false       // reset acknowledgement since there's a new view
-				//vs.impl.trackRestarted[oldBackup] = false // old backup restarted is reset
+			} else if vs.impl.trackPings[vs.impl.currView.Backup] >= DeadPings { // backup dead asf
+				// primary is chill
+				newBackup := ""
+				oldBackup := vs.impl.currView.Backup
+				for key := range vs.impl.trackPings {
+					if key != vs.impl.currView.Primary && key != oldBackup && vs.impl.trackPings[key] < DeadPings { // promote as a backup
+						newBackup = key
+						break
+					}
+				}
+				if vs.impl.primaryAcknowledged {
+					vs.impl.currView = View{
+						Viewnum: vs.impl.currView.Viewnum + 1,
+						Primary: vs.impl.currView.Primary,
+						Backup:  newBackup,
+					}
+					vs.impl.primaryAcknowledged = false
+					vs.impl.trackRestarted[newBackup] = false
+					vs.impl.trackRestarted[oldBackup] = false
+				} else {
+					return nil
+				}
+			} else if vs.impl.trackRestarted[vs.impl.currView.Backup] == true { // backup restarted
+				// find a new backup
+				newBackup := ""
+				oldBackup := vs.impl.currView.Backup
+				for key := range vs.impl.trackPings {
+					if key != vs.impl.currView.Primary && vs.impl.trackPings[key] < DeadPings { // promote as a backup
+						// the new backup could be the backup that was restarted
+						newBackup = key
+						break
+					}
+				}
+				if vs.impl.primaryAcknowledged {
+					vs.impl.currView = View{
+						Viewnum: vs.impl.currView.Viewnum + 1,
+						Primary: vs.impl.currView.Primary,
+						Backup:  newBackup,
+					}
+					vs.impl.primaryAcknowledged = false
+					vs.impl.trackRestarted[newBackup] = false
+					vs.impl.trackRestarted[oldBackup] = false
+				} else {
+					return nil
+				}
 			}
-
 		}
 		return nil
 	}
 	vs.performRequests(tickRequests)
 }
-
-// VIEW NUMBERS
-/*
-view number changes when
-1) primary dies and backup is promoted
-2) backkup dies and idle is promoted
-3) if the ping is 0, the server restarted, but the view shoudl still change
-*/
