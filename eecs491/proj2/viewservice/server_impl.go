@@ -55,8 +55,6 @@ func (vs *ViewServer) PingImpl(args *PingArgs, reply *PingReply) {
 		vs.impl.trackPings[args.Me] = 0
 		vs.impl.lastViewNum[args.Me] = args.Viewnum
 		if args.Me == vs.impl.currView.Primary && args.Viewnum == vs.impl.currView.Viewnum {
-			//fmt.Printf("ACK: server=%s view=%d\n",
-			//	args.Me, args.Viewnum)
 			vs.impl.primaryAcknowledged = true
 		}
 		reply.View = vs.impl.currView
@@ -80,21 +78,9 @@ func (vs *ViewServer) GetImpl(args *GetArgs, reply *GetReply) {
 func (vs *ViewServer) tick() {
 	// when a tick is called, increase time it hasn't recieved a ping
 	tickRequests := func(*ViewServerImpl) any {
-		//fmt.Printf("TICK: view=%+v pings=%+v\n",
-		//	vs.impl.currView,
-		//	vs.impl.trackPings,
-		//)
-		// increment trackPings ++
 		for key := range vs.impl.trackPings {
 			vs.impl.trackPings[key]++
 		}
-		//fmt.Printf(
-		//	"TICK: view=%+v ack=%v trackPings=%d primaryRestarted=%v \n",
-		//	vs.impl.currView,
-		//	vs.impl.primaryAcknowledged,
-		//	vs.impl.trackPings[vs.impl.currView.Primary],
-		//	vs.impl.trackRestarted[vs.impl.currView.Primary],
-		//)
 		if vs.impl.currView.Primary == "" { // starting --> get initial primary
 			firstPrimary := ""
 			firstBackup := ""
@@ -178,16 +164,18 @@ func (vs *ViewServer) tick() {
 						break
 					}
 				}
-				if vs.impl.primaryAcknowledged {
-					vs.impl.currView = View{
-						Viewnum: vs.impl.currView.Viewnum + 1,
-						Primary: vs.impl.currView.Primary,
-						Backup:  newBackup,
+				if newBackup != "" {
+					if vs.impl.primaryAcknowledged {
+						vs.impl.currView = View{
+							Viewnum: vs.impl.currView.Viewnum + 1,
+							Primary: vs.impl.currView.Primary,
+							Backup:  newBackup,
+						}
+						vs.impl.primaryAcknowledged = false
+						vs.impl.trackRestarted[newBackup] = false
+					} else {
+						return nil
 					}
-					vs.impl.primaryAcknowledged = false
-					vs.impl.trackRestarted[newBackup] = false
-				} else {
-					return nil
 				}
 			} else if vs.impl.trackPings[vs.impl.currView.Backup] >= DeadPings { // backup dead asf
 				// primary is chill
